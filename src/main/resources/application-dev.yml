@@ -1,0 +1,29 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.bedrock.converse.autoconfigure.BedrockConverseProxyChatAutoConfiguration
+
+  # ── AI — Ollama (local) ───────────────────────────────────────────────────
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        model: ${OLLAMA_MODEL:mistral}
+
+  elasticsearch:
+    restclient:
+      ssl:
+        bundle: ~   # disable SSL bundle
+
+# ── Local file storage path ───────────────────────────────────────────────
+app:
+  cv:
+    storage:
+      path: uploads/cvs

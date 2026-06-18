@@ -1,0 +1,24 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration
+
+  # ── AI — AWS Bedrock ──────────────────────────────────────────────────────
+  ai:
+    bedrock:
+      converse:
+        model: ${BEDROCK_MODEL:anthropic.claude-3-haiku-20240307-v1:0}
+        region: ${AWS_REGION:us-east-1}
+
+# ── AWS S3 ────────────────────────────────────────────────────────────────
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET}
+    region: ${AWS_REGION:us-east-1}

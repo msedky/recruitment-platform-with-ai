@@ -1,0 +1,318 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.wrap{padding:1rem 0}
+.section{margin-bottom:2rem}
+.sec-title{font-size:11px;font-weight:500;color:var(--color-text-secondary);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.box{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 12px;min-width:130px;background:var(--color-background-primary)}
+.box .title{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.box .sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.box.gray{background:var(--color-background-secondary)}
+.box.teal{background:#E1F5EE;border-color:#5DCAA5}.box.teal .title{color:#085041}.box.teal .sub{color:#0F6E56}
+.box.purple{background:#EEEDFE;border-color:#AFA9EC}.box.purple .title{color:#3C3489}.box.purple .sub{color:#534AB7}
+.box.amber{background:#FAEEDA;border-color:#EF9F27}.box.amber .title{color:#633806}.box.amber .sub{color:#854F0B}
+.box.blue{background:#E6F1FB;border-color:#85B7EB}.box.blue .title{color:#0C447C}.box.blue .sub{color:#185FA5}
+.box.red{background:#FCEBEB;border-color:#F09595}.box.red .title{color:#791F1F}.box.red .sub{color:#A32D2D}
+.box.green{background:#EAF3DE;border-color:#97C459}.box.green .title{color:#27500A}.box.green .sub{color:#3B6D11}
+.box.coral{background:#FAECE7;border-color:#F0997B}.box.coral .title{color:#712B13}.box.coral .sub{color:#993C1D}
+.arr{font-size:16px;color:var(--color-text-secondary);flex-shrink:0}
+.queue-box{border:1.5px solid #7F77DD;border-radius:var(--border-radius-md);padding:8px 14px;background:#EEEDFE;min-width:160px}
+.queue-box .title{font-size:13px;font-weight:500;color:#3C3489}
+.queue-box .sub{font-size:11px;color:#534AB7;margin-top:2px}
+.dlq-box{border:1.5px solid #F09595;border-radius:var(--border-radius-md);padding:8px 14px;background:#FCEBEB;min-width:160px}
+.dlq-box .title{font-size:13px;font-weight:500;color:#791F1F}
+.dlq-box .sub{font-size:11px;color:#A32D2D;margin-top:2px}
+.divider{border:none;border-top:0.5px solid var(--color-border-tertiary);margin:20px 0}
+.indent{margin-left:24px}
+.failure-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.failure-label{font-size:11px;color:var(--color-text-secondary);padding-top:9px;min-width:80px;flex-shrink:0}
+.status-chip{font-size:11px;font-weight:500;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.s-upload{background:#E6F1FB;color:#0C447C}
+.s-published{background:#EAF3DE;color:#27500A}
+.s-processing{background:#FAEEDA;color:#633806}
+.s-extracted{background:#EEEDFE;color:#3C3489}
+.s-index-pending{background:#FAEEDA;color:#633806}
+.s-processed{background:#E1F5EE;color:#085041}
+.s-ai-failed{background:#FCEBEB;color:#791F1F}
+.s-db-failed{background:#FCEBEB;color:#791F1F}
+.s-index-failed{background:#FCEBEB;color:#791F1F}
+.note{font-size:11px;color:var(--color-text-secondary);margin-top:6px;padding-left:4px}
+.fallback-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.fallback-label{font-size:11px;color:var(--color-text-secondary);padding-top:9px;min-width:90px;flex-shrink:0}
+@media(prefers-color-scheme:dark){
+.box.teal{background:#085041;border-color:#1D9E75}.box.teal .title{color:#9FE1CB}.box.teal .sub{color:#5DCAA5}
+.box.purple{background:#3C3489;border-color:#7F77DD}.box.purple .title{color:#CECBF6}.box.purple .sub{color:#AFA9EC}
+.box.amber{background:#633806;border-color:#EF9F27}.box.amber .title{color:#FAC775}.box.amber .sub{color:#EF9F27}
+.box.blue{background:#0C447C;border-color:#378ADD}.box.blue .title{color:#B5D4F4}.box.blue .sub{color:#85B7EB}
+.box.red{background:#791F1F;border-color:#E24B4A}.box.red .title{color:#F7C1C1}.box.red .sub{color:#F09595}
+.box.green{background:#27500A;border-color:#639922}.box.green .title{color:#C0DD97}.box.green .sub{color:#97C459}
+.box.coral{background:#712B13;border-color:#D85A30}.box.coral .title{color:#F5C4B3}.box.coral .sub{color:#F0997B}
+.queue-box{background:#3C3489;border-color:#7F77DD}.queue-box .title{color:#CECBF6}.queue-box .sub{color:#AFA9EC}
+.dlq-box{background:#791F1F;border-color:#E24B4A}.dlq-box .title{color:#F7C1C1}.dlq-box .sub{color:#F09595}
+.s-upload{background:#0C447C;color:#B5D4F4}
+.s-published{background:#27500A;color:#C0DD97}
+.s-processing{background:#633806;color:#FAC775}
+.s-extracted{background:#3C3489;color:#CECBF6}
+.s-index-pending{background:#633806;color:#FAC775}
+.s-processed{background:#085041;color:#9FE1CB}
+.s-ai-failed{background:#791F1F;color:#F7C1C1}
+.s-db-failed{background:#791F1F;color:#F7C1C1}
+.s-index-failed{background:#791F1F;color:#F7C1C1}
+}
+</style>
+
+<div class="wrap">
+
+<div class="section">
+  <div class="sec-title">Phase 1 — Sync (HTTP request thread)</div>
+  <div class="row">
+    <div class="box gray"><div class="title">POST /api/cv</div><div class="sub">MultipartFile upload</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">StorageService.store()</div><div class="sub">Volume (dev) / S3 (prod)</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">Persist ApplicantEntity</div><div class="sub">status = UPLOAD_RECEIVED</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">Persist CvFileEntity</div><div class="sub">metadata saved here</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">Persist OutboxEntity</div><div class="sub">status = PENDING</div></div>
+    <div class="arr">→</div>
+    <div class="box green"><div class="title">202 Accepted</div><div class="sub">returns applicantId</div></div>
+  </div>
+  <div class="note">⚠ Steps 3, 4, 5 inside single @Transactional — if DB fails after file saved, compensating delete on storage</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">Phase 2 — Outbox Scheduler (configurable interval)</div>
+  <div class="row">
+    <div class="box amber"><div class="title">@Scheduled</div><div class="sub">fetch PENDING outbox records</div></div>
+    <div class="arr">→</div>
+    <div class="box amber"><div class="title">Publish CvUploadedEvent</div><div class="sub">applicantId + filePath + metadata</div></div>
+    <div class="arr">→</div>
+    <div class="queue-box"><div class="title">cv.uploaded queue</div><div class="sub">RabbitMQ / Amazon MQ</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">OutboxEntity status = PUBLISHED</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">ApplicantEntity status = PUBLISHED</div></div>
+  </div>
+  <div class="note">On publish failure → increment retryCount, keep PENDING, retry next cycle. After MAX retries → OutboxEntity status = FAILED (ERROR log)</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">Phase 3 — cv.uploaded consumer (AI extraction + DB persistence)</div>
+  <div class="row">
+    <div class="queue-box"><div class="title">cv.uploaded queue</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">status = PROCESSING</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">StorageService.load()</div><div class="sub">fetch file bytes</div></div>
+    <div class="arr">→</div>
+    <div class="box amber"><div class="title">CvParserService</div><div class="sub">PDF / Word → plain text</div></div>
+    <div class="arr">→</div>
+    <div class="box purple"><div class="title">AiExtractionService</div><div class="sub">Ollama (dev) / Bedrock (prod)</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">Persist to PostgreSQL</div><div class="sub">ApplicantEntity + all child entities</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">status = EXTRACTION_DONE</div></div>
+    <div class="arr">→</div>
+    <div class="box purple"><div class="title">Publish CvExtractedEvent</div><div class="sub">applicantId only — no DTO</div></div>
+    <div class="arr">→</div>
+    <div class="queue-box"><div class="title">cv.extracted queue</div></div>
+  </div>
+  <div style="margin-top:10px">
+    <div class="failure-row">
+      <div class="failure-label">AI fails →</div>
+      <div class="row" style="margin:0;gap:6px">
+        <div class="box red"><div class="title">Nack → retry N times</div></div>
+        <div class="arr">→</div>
+        <div class="dlq-box"><div class="title">cv.uploaded.dlq</div></div>
+        <div class="arr">→</div>
+        <div class="box amber"><div class="title">DLQ listener</div><div class="sub">re-queues after configurable delay</div></div>
+        <div class="arr">→</div>
+        <div class="queue-box"><div class="title">cv.uploaded queue</div><div class="sub">auto-retry on AI recovery</div></div>
+      </div>
+    </div>
+    <div class="failure-row">
+      <div class="failure-label">DB down →</div>
+      <div class="row" style="margin:0;gap:6px">
+        <div class="box red"><div class="title">Nack → retry N times</div></div>
+        <div class="arr">→</div>
+        <div class="dlq-box"><div class="title">cv.uploaded.dlq</div></div>
+        <div class="arr">→</div>
+        <div class="box amber"><div class="title">DLQ listener</div><div class="sub">re-queues after DB recovery</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">⚠ DB is written before publishing CvExtractedEvent. If RabbitMQ is unavailable after DB commit, data is safe — worst case is delayed ES indexing, not data loss. DB down after AI response is the only scenario requiring AI re-call.</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">Phase 4 — cv.extracted consumer (ES indexing only)</div>
+  <div class="row">
+    <div class="queue-box"><div class="title">cv.extracted queue</div><div class="sub">carries applicantId only</div></div>
+    <div class="arr">→</div>
+    <div class="box blue"><div class="title">Load from PostgreSQL</div><div class="sub">ApplicantEntity + all child entities</div></div>
+    <div class="arr">→</div>
+    <div class="box teal"><div class="title">status = INDEX_PENDING</div></div>
+    <div class="arr">→</div>
+    <div class="box blue"><div class="title">Index ApplicantDocument</div><div class="sub">ES / OpenSearch</div></div>
+    <div class="arr">→</div>
+    <div class="box green"><div class="title">status = PROCESSED</div><div class="sub">ack message</div></div>
+  </div>
+  <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+    <div class="failure-row">
+      <div class="failure-label">DB down →</div>
+      <div class="row" style="margin:0;gap:6px">
+        <div class="box red"><div class="title">Nack → retry N times</div></div>
+        <div class="arr">→</div>
+        <div class="dlq-box"><div class="title">cv.extracted.dlq</div></div>
+        <div class="arr">→</div>
+        <div class="box amber"><div class="title">DLQ listener</div><div class="sub">re-queues after configurable delay</div></div>
+        <div class="arr">→</div>
+        <div class="queue-box"><div class="title">cv.extracted queue</div></div>
+      </div>
+    </div>
+    <div class="failure-row">
+      <div class="failure-label">Both down →</div>
+      <div class="row" style="margin:0;gap:6px">
+        <div class="box red"><div class="title">Nack → retry N times</div></div>
+        <div class="arr">→</div>
+        <div class="dlq-box"><div class="title">cv.extracted.dlq</div></div>
+        <div class="arr">→</div>
+        <div class="box amber"><div class="title">DLQ listener</div><div class="sub">re-queues after configurable delay</div></div>
+      </div>
+    </div>
+    <div class="failure-row">
+      <div class="failure-label">ES down →</div>
+      <div class="row" style="margin:0;gap:6px">
+        <div class="box teal"><div class="title">DB write kept</div><div class="sub">status = INDEX_PENDING</div></div>
+        <div class="arr">→</div>
+        <div class="box amber"><div class="title">ES Retry Scheduler</div><div class="sub">configurable interval</div></div>
+        <div class="arr">→</div>
+        <div class="box blue"><div class="title">Retry ES indexing</div></div>
+        <div class="arr">→</div>
+        <div class="box green"><div class="title">status = PROCESSED</div></div>
+      </div>
+    </div>
+    <div class="failure-row">
+      <div class="failure-label">ES max retries →</div>
+      <div class="row" style="margin:0;gap:6px">
+        <div class="box red"><div class="title">status = INDEX_FAILED</div><div class="sub">ERROR log → CloudWatch alert</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">Phase 5 — Read APIs</div>
+
+  <div style="margin-bottom:14px">
+    <div class="phase-label" style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px">GET /api/applicants/{id} — find by ID</div>
+    <div class="row">
+      <div class="box gray"><div class="title">GET /api/applicants/{id}</div></div>
+      <div class="arr">→</div>
+      <div class="box blue"><div class="title">Query ES by applicantId</div><div class="sub">single document, no joins</div></div>
+      <div class="arr">→</div>
+      <div class="box green"><div class="title">Return ApplicantDTO</div><div class="sub">fast path — ES hit</div></div>
+    </div>
+    <div style="margin-top:6px">
+      <div class="fallback-row">
+        <div class="fallback-label">ES miss / down →</div>
+        <div class="row" style="margin:0;gap:6px">
+          <div class="box blue"><div class="title">Fall back to PostgreSQL</div><div class="sub">joins all child tables</div></div>
+          <div class="arr">→</div>
+          <div class="box green"><div class="title">Return ApplicantDTO</div><div class="sub">source of truth</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">⚠ ES miss also means status may be INDEX_PENDING — PostgreSQL fallback guarantees correct data</div>
+  </div>
+
+  <div>
+    <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px">GET /api/applicants/search?keyword={kw} — keyword search</div>
+    <div class="row">
+      <div class="box gray"><div class="title">GET /api/applicants/search</div><div class="sub">?keyword=Java+Spring</div></div>
+      <div class="arr">→</div>
+      <div class="box blue"><div class="title">ES fuzzy search</div><div class="sub">name, skills, jobTitle, summary</div></div>
+      <div class="arr">→</div>
+      <div class="box green"><div class="title">Return List&lt;ApplicantDTO&gt;</div><div class="sub">ranked by relevance score</div></div>
+    </div>
+    <div class="note">Search is ES only — no PostgreSQL fallback. If ES is down, return 503 Service Unavailable with meaningful message.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">ApplicantEntity — status lifecycle</div>
+  <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center">
+    <span class="status-chip s-upload">UPLOAD_RECEIVED</span>
+    <div class="arr">→</div>
+    <span class="status-chip s-published">PUBLISHED</span>
+    <div class="arr">→</div>
+    <span class="status-chip s-processing">PROCESSING</span>
+    <div class="arr">→</div>
+    <span class="status-chip s-extracted">EXTRACTION_DONE</span>
+    <div class="arr">→</div>
+    <span class="status-chip s-index-pending">INDEX_PENDING</span>
+    <div class="arr">→</div>
+    <span class="status-chip s-processed">PROCESSED</span>
+  </div>
+  <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px">
+    <span style="font-size:11px;color:var(--color-text-secondary)">failure states:</span>
+    <span class="status-chip s-ai-failed">AI_FAILED</span>
+    <span class="status-chip s-db-failed">DB_FAILED</span>
+    <span class="status-chip s-index-failed">INDEX_FAILED</span>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">Schedulers</div>
+  <div class="row" style="flex-wrap:wrap;gap:8px">
+    <div class="box amber" style="min-width:200px"><div class="title">Outbox scheduler</div><div class="sub">publishes PENDING outbox records → cv.uploaded queue</div></div>
+    <div class="box amber" style="min-width:200px"><div class="title">ES retry scheduler</div><div class="sub">retries ES indexing for INDEX_PENDING applicants</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">Events</div>
+  <div class="row" style="flex-wrap:wrap;gap:8px">
+    <div class="box purple" style="min-width:220px">
+      <div class="title">CvUploadedEvent</div>
+      <div class="sub">applicantId, filePath, originalFileName, fileType, fileSize</div>
+    </div>
+    <div class="box purple" style="min-width:220px">
+      <div class="title">CvExtractedEvent</div>
+      <div class="sub">applicantId only — data already in PostgreSQL</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section">
+  <div class="sec-title">New classes needed (not yet in codebase)</div>
+  <div class="row" style="flex-wrap:wrap;gap:8px">
+    <div class="box coral" style="min-width:160px"><div class="title">OutboxEntity</div><div class="sub">aggregateId, eventType, payload, status, retryCount, lastAttemptAt</div></div>
+    <div class="box coral" style="min-width:160px"><div class="title">ApplicantStatus enum</div><div class="sub">all lifecycle + failure statuses</div></div>
+    <div class="box coral" style="min-width:160px"><div class="title">ApplicantDocument</div><div class="sub">@Document for ES / OpenSearch</div></div>
+    <div class="box coral" style="min-width:160px"><div class="title">CvUploadedEvent</div><div class="sub">message payload for queue 1</div></div>
+    <div class="box coral" style="min-width:160px"><div class="title">CvExtractedEvent</div><div class="sub">message payload for queue 2</div></div>
+    <div class="box coral" style="min-width:160px"><div class="title">StorageService interface</div><div class="sub">+ Local and S3 implementations</div></div>
+  </div>
+</div>
+
+</div>
