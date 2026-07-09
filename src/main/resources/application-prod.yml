@@ -1,7 +1,7 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     show-sql: false
     properties:
       hibernate:
@@ -16,7 +16,6 @@ spring:
       converse:
         model: ${BEDROCK_MODEL:anthropic.claude-3-haiku-20240307-v1:0}
         region: ${AWS_REGION:us-east-1}
-
 # ── AWS S3 ────────────────────────────────────────────────────────────────
 aws:
   s3:

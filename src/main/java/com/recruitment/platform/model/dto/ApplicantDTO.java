@@ -1,5 +1,6 @@
 package com.recruitment.platform.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.recruitment.platform.common.dto.BaseDTO;
 import com.recruitment.platform.model.enums.ApplicantStatus;
 import lombok.AllArgsConstructor;
@@ -18,17 +19,20 @@ import java.util.Set;
 @SuperBuilder
 public class ApplicantDTO extends BaseDTO {
 
+    @JsonAlias({"name", "full_name"})
     private String fullName;
     private String email;
     private String phone;
     private String nationality;
     private String address;
+    @JsonAlias({"linkedin_url", "linkedin"})
     private String linkedInUrl;
     private String portfolioUrl;
     private String summary;
     private ApplicantStatus status;
     private CvFileDTO cvFile;
 
+    @JsonAlias({"work_experiences", "workExperience", "experiences"})
     private Set<WorkExperienceDTO> workExperiences = new HashSet<>();
     private Set<SkillDTO> skills = new HashSet<>();
     private Set<CertificateDTO> certificates = new HashSet<>();

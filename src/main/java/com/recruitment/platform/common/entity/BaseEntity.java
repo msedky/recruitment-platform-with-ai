@@ -22,6 +22,7 @@ import java.util.UUID;
 public abstract class BaseEntity implements Persistable<UUID> {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(updatable = false, nullable = false)
     private UUID id;
 

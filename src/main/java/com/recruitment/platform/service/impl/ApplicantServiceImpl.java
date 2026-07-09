@@ -1,26 +1,21 @@
 package com.recruitment.platform.service.impl;
 
-import com.recruitment.platform.exception.SearchUnavailableException;
-import com.recruitment.platform.mapper.ApplicantMapper;
-import com.recruitment.platform.repository.ApplicantSearchRepository;
+import com.recruitment.platform.exception.InvalidCvFileException;
+import com.recruitment.platform.mapper.*;
 import com.recruitment.platform.model.dto.ApplicantDTO;
-import com.recruitment.platform.model.entity.ApplicantEntity;
-import com.recruitment.platform.model.entity.CertificateEntity;
-import com.recruitment.platform.model.entity.EducationEntity;
-import com.recruitment.platform.model.entity.LanguageEntity;
-import com.recruitment.platform.model.entity.SkillEntity;
-import com.recruitment.platform.model.entity.WorkExperienceEntity;
-import com.recruitment.platform.model.payload.request.ApplicantRequest;
-import com.recruitment.platform.model.payload.request.CertificateRequest;
-import com.recruitment.platform.model.payload.request.EducationRequest;
-import com.recruitment.platform.model.payload.request.LanguageRequest;
-import com.recruitment.platform.model.payload.request.SkillRequest;
-import com.recruitment.platform.model.payload.request.WorkExperienceRequest;
-import com.recruitment.platform.repository.ApplicantRepository;
+import com.recruitment.platform.model.entity.*;
+import com.recruitment.platform.model.enums.ApplicantStatus;
+import com.recruitment.platform.model.enums.ApplicationStatus;
+import com.recruitment.platform.model.payload.request.*;
+import com.recruitment.platform.repository.*;
+import com.recruitment.platform.service.AiExtractionService;
 import com.recruitment.platform.service.ApplicantService;
-import com.recruitment.platform.service.CvUploadService;
+import com.recruitment.platform.service.CvParserService;
+import com.recruitment.platform.service.CvStorageService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,20 +32,95 @@ import java.util.stream.Collectors;
 public class ApplicantServiceImpl implements ApplicantService {
 
     private final ApplicantRepository applicantRepository;
+    private final SkillRepository skillRepository;
+    private final WorkExperienceRepository workExperienceRepository;
+    private final EducationRepository educationRepository;
+    private final CertificateRepository certificateRepository;
+    private final LanguageRepository languageRepository;
+
     private final ApplicantMapper applicantMapper;
-    private final ApplicantSearchRepository applicantSearchRepository;
-    private final CvUploadService cvUploadService;
+    private final SkillMapper skillMapper;
+    private final WorkExperienceMapper workExperienceMapper;
+    private final EducationMapper educationMapper;
+    private final CertificateMapper certificateMapper;
+    private final LanguageMapper languageMapper;
 
-    // ── Upload ────────────────────────────────────────────────────────────────
+    private final CvStorageService cvStorageService;
+    private final CvFileRepository cvFileRepository;
+    private final JobApplicationRepository jobApplicationRepository;
+    private final CvParserService cvParserService;
+    private final AiExtractionService aiExtractionService;
 
-    /**
-     * Delegates to CvUploadService which handles Phase 1 of the async flow:
-     * store file → persist skeleton ApplicantEntity → persist OutboxEntity.
-     * Returns applicantId immediately — AI extraction is async.
-     */
+
     @Override
-    public UUID uploadAndExtract(MultipartFile file) {
-        return cvUploadService.handleUpload(file);
+    public ApplicantDTO uploadAndExtract(MultipartFile file, UUID jobVacancyId) {
+
+        validateFileType(file);
+
+        String filePath = null;
+
+        try {
+            // Step 1 — persist skeleton ApplicantEntity
+            // fullName and email are NOT NULL in the schema but unknown until AI extraction.
+            // Temporary placeholders are overwritten by CvExtractedConsumer (Phase 4).
+            ApplicantEntity applicant = ApplicantEntity.builder()
+                    .status(ApplicantStatus.UPLOAD_RECEIVED)
+                    .fullName("PENDING_EXTRACTION")
+                    .email("PENDING_@extraction.local")
+                    .build();
+            applicantRepository.save(applicant);
+
+            // Step 2 — store file (outside transaction — storage is not transactional)
+            filePath = cvStorageService.store(file, applicant.getId());
+            log.info("CV file stored at: {} for applicantId: {}", filePath, applicant.getId());
+
+
+
+            // Step 3 — persist CvFileEntity
+            CvFileEntity cvFile = CvFileEntity.builder()
+                    .applicant(applicant)
+                    .originalFileName(file.getOriginalFilename())
+                    .storedFileName(applicant.getId() + "_" + file.getOriginalFilename())
+                    .filePath(filePath)
+                    .fileSize(file.getSize())
+                    .fileType(file.getContentType())
+                    .build();
+            cvFileRepository.save(cvFile);
+            log.info("Upload phase complete — applicantId: {}", applicant.getId());
+
+            JobApplicationEntity jobApplication = JobApplicationEntity.builder()
+                    .applicant(applicant)
+                    .jobVacancy(JobVacancyEntity.builder().id(jobVacancyId).build())
+                    .status(ApplicationStatus.APPLIED)
+                    .build();
+            jobApplicationRepository.save(jobApplication);
+            log.info("saved job application: {}", jobApplication.getId());
+
+            Resource fileResource = cvStorageService.load(filePath);
+            String cvText = cvParserService.extractText(fileResource, cvFile.getFileType());
+            log.info("CV text extracted — applicantId: {}", applicant.getId());
+
+            ApplicantDTO dto = aiExtractionService.extractApplicantData(cvText);
+            log.info("AI extraction completed — applicantId: {}", applicant.getId());
+
+            applicantMapper.updateEntityFromDTO(dto, applicant);
+            persistChildren(applicant, dto);
+
+            applicant.setStatus(ApplicantStatus.EXTRACTION_DONE);
+            applicantRepository.save(applicant);
+            log.info("Extracted data persisted to DB — applicantId: {}", applicant.getId());
+            dto = applicantMapper.toDTO(applicant);
+
+            return dto;
+        } catch (Exception e) {
+            // Compensating action — delete the file if DB commit fails
+            if (filePath != null) {
+                log.warn("DB transaction failed — deleting stored file: {}", filePath);
+                tryDeleteFile(filePath);
+            }
+            throw e;
+        }
+
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -58,38 +128,8 @@ public class ApplicantServiceImpl implements ApplicantService {
     @Override
     @Transactional(readOnly = true)
     public ApplicantDTO findById(UUID id) {
-        // Fast path — query ES first (single document, no joins)
-        try {
-            return applicantSearchRepository.findById(id.toString())
-                    .map(applicantMapper::toDTO)
-                    .orElseGet(() -> {
-                        log.info("ES miss for applicantId: {} — falling back to PostgreSQL", id);
-                        return applicantMapper.toDTO(findApplicantById(id));
-                    });
-        } catch (Exception esException) {
-            // ES is down — fall back to PostgreSQL
-            log.warn("ES unavailable for findById: {} — falling back to PostgreSQL. Error: {}",
-                    id, esException.getMessage());
-            return applicantMapper.toDTO(findApplicantById(id));
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ApplicantDTO> search(String keyword) {
-        // ES only — no PostgreSQL fallback for search
-        try {
-            return applicantSearchRepository
-                    .findByFullNameContainingOrSummaryContainingOrSkillsContaining(
-                            keyword, keyword, keyword)
-                    .stream()
-                    .map(applicantMapper::toDTO)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("ES unavailable for search — keyword: {}", keyword);
-            throw new SearchUnavailableException(
-                    "Search service is currently unavailable — please try again later", e);
-        }
+        return applicantRepository.findById(id)
+                .map(applicantMapper::toDTO).orElseThrow(() -> new EntityNotFoundException("Applicant not found with id: " + id));
     }
 
     @Override
@@ -225,5 +265,69 @@ public class ApplicantServiceImpl implements ApplicantService {
     private ApplicantEntity findApplicantById(UUID id) {
         return applicantRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Applicant not found with id: " + id));
+    }
+
+    private void validateFileType(MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new InvalidCvFileException("Uploaded file is empty");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null ||
+                (!contentType.equals("application/pdf") &&
+                        !contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))) {
+            throw new InvalidCvFileException(
+                    "Unsupported file type: " + contentType + ". Only PDF and DOCX are accepted.");
+        }
+    }
+
+    private void tryDeleteFile(String filePath) {
+        try {
+            cvStorageService.delete(filePath);
+        } catch (Exception ex) {
+            log.error("Compensating delete failed for path: {} — manual cleanup required",
+                    filePath, ex);
+        }
+    }
+
+    private void persistChildren(ApplicantEntity applicant, ApplicantDTO dto) {
+        if (dto.getSkills() != null) {
+            Set<SkillEntity> skills = dto.getSkills().stream()
+                    .map(skillMapper::toEntity)
+                    .peek(e -> e.setApplicant(applicant))
+                    .collect(Collectors.toSet());
+            skillRepository.saveAll(skills);
+        }
+
+        if (dto.getWorkExperiences() != null) {
+            Set<WorkExperienceEntity> experiences = dto.getWorkExperiences().stream()
+                    .map(workExperienceMapper::toEntity)
+                    .peek(e -> e.setApplicant(applicant))
+                    .collect(Collectors.toSet());
+            workExperienceRepository.saveAll(experiences);
+        }
+
+        if (dto.getEducations() != null) {
+            Set<EducationEntity> educations = dto.getEducations().stream()
+                    .map(educationMapper::toEntity)
+                    .peek(e -> e.setApplicant(applicant))
+                    .collect(Collectors.toSet());
+            educationRepository.saveAll(educations);
+        }
+
+        if (dto.getCertificates() != null) {
+            Set<CertificateEntity> certificates = dto.getCertificates().stream()
+                    .map(certificateMapper::toEntity)
+                    .peek(e -> e.setApplicant(applicant))
+                    .collect(Collectors.toSet());
+            certificateRepository.saveAll(certificates);
+        }
+
+        if (dto.getLanguages() != null) {
+            Set<LanguageEntity> languages = dto.getLanguages().stream()
+                    .map(languageMapper::toEntity)
+                    .peek(e -> e.setApplicant(applicant))
+                    .collect(Collectors.toSet());
+            languageRepository.saveAll(languages);
+        }
     }
 }

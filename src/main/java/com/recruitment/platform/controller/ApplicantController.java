@@ -37,29 +37,18 @@ public class ApplicantController {
 
     private final ApplicantService applicantService;
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, String>> uploadCv(
-            @RequestParam("file") MultipartFile file) {
+    @PostMapping(value = "/upload/{jobVacancyId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApplicantDTO> uploadCv(
+            @RequestParam("file") MultipartFile file, @PathVariable UUID jobVacancyId) {
         log.info("Received CV upload request, file: {}", file.getOriginalFilename());
-        UUID applicantId = applicantService.uploadAndExtract(file);
-        return ResponseEntity.accepted().body(Map.of(
-                "applicantId", applicantId.toString(),
-                "status", "UPLOAD_RECEIVED",
-                "message", "CV received and queued for processing"
-        ));
+        ApplicantDTO applicant = applicantService.uploadAndExtract(file, jobVacancyId);
+        return ResponseEntity.ok(applicant);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApplicantDTO> findById(@PathVariable UUID id) {
         log.info("Received request to find applicant by id: {}", id);
         return ResponseEntity.ok(applicantService.findById(id));
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<List<ApplicantDTO>> search(
-            @RequestParam String keyword) {
-        log.info("Received search request — keyword: {}", keyword);
-        return ResponseEntity.ok(applicantService.search(keyword));
     }
 
     @GetMapping

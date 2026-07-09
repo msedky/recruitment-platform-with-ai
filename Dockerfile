@@ -11,14 +11,14 @@ RUN mvn clean package -DskipTests -q
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Create non-root user and uploads dir (must run as root before USER switch)
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && mkdir -p /app/uploads/cvs \
+    && chown -R appuser:appgroup /app
+
+COPY --from=build --chown=appuser:appgroup /app/target/*.jar app.jar
+
 USER appuser
-
-# Create uploads directory
-RUN mkdir -p /app/uploads/cvs
-
-COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 

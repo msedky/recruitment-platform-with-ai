@@ -23,28 +23,6 @@ spring:
       hibernate:
         format_sql: false
 
-  # ── RabbitMQ ──────────────────────────────────────────────────────────────
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
-    listener:
-      simple:
-        retry:
-          enabled: true
-          initial-interval: 1000    # 1s before first retry
-          multiplier: 2.0           # exponential backoff
-          max-interval: 10000       # cap at 10s
-          max-attempts: ${RABBITMQ_MAX_ATTEMPTS:4}
-        default-requeue-rejected: false  # send to DLQ on final failure
-
-  # ── Elasticsearch ─────────────────────────────────────────────────────────
-  elasticsearch:
-    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
-    username: ${ELASTICSEARCH_USERNAME:}
-    password: ${ELASTICSEARCH_PASSWORD:}
-
   # ── File upload limits ────────────────────────────────────────────────────
   servlet:
     multipart:
@@ -68,29 +46,3 @@ app:
   cv:
     storage:
       path: ${CV_STORAGE_PATH:uploads/cvs}
-
-  rabbitmq:
-    exchange: cv.exchange
-    queues:
-      cv-uploaded:
-        name: cv.uploaded
-        dlq: cv.uploaded.dlq
-        routing-key: cv.uploaded
-      cv-extracted:
-        name: cv.extracted
-        dlq: cv.extracted.dlq
-        routing-key: cv.extracted
-
-  outbox:
-    scheduler:
-      interval-ms: ${OUTBOX_SCHEDULER_INTERVAL_MS:5000}   # every 5s
-      max-retries: ${OUTBOX_MAX_RETRIES:3}
-
-  es:
-    retry:
-      scheduler:
-        interval-ms: ${ES_RETRY_SCHEDULER_INTERVAL_MS:30000}  # every 30s
-        max-retries: ${ES_MAX_RETRIES:10}
-
-  dlq:
-    requeue-delay-ms: ${DLQ_REQUEUE_DELAY_MS:60000}  # re-queue after 60s

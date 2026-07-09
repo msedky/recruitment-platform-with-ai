@@ -17,7 +17,7 @@
 		<java.version>21</java.version>
 		<spring-ai.version>2.0.0-M5</spring-ai.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
-		<aws-sdk.version>2.25.60</aws-sdk.version>
+		<aws-sdk.version>2.41.22</aws-sdk.version>
 	</properties>
 
 	<dependencies>
@@ -43,35 +43,16 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- ─── Messaging ────────────────────────────────────────────── -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-amqp</artifactId>
-		</dependency>
-
-		<!-- ─── Search ───────────────────────────────────────────────── -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-elasticsearch</artifactId>
-		</dependency>
-
 		<!-- ─── AI — Ollama (dev profile) ────────────────────────────── -->
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-starter-model-ollama</artifactId>
 		</dependency>
 
-		<!-- ─── AI — AWS Bedrock (prod profile) ──────────────────────── -->
-		<dependency>
-			<groupId>org.springframework.ai</groupId>
-			<artifactId>spring-ai-starter-model-bedrock-converse</artifactId>
-		</dependency>
-
 		<!-- ─── AWS SDK — S3 (prod profile) ──────────────────────────── -->
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
-			<version>${aws-sdk.version}</version>
 		</dependency>
 
 		<!-- ─── File parsing ─────────────────────────────────────────── -->
@@ -121,11 +102,6 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.springframework.amqp</groupId>
-			<artifactId>spring-rabbit-test</artifactId>
-			<scope>test</scope>
-		</dependency>
 
 	</dependencies>
 
@@ -135,6 +111,13 @@
 				<groupId>org.springframework.ai</groupId>
 				<artifactId>spring-ai-bom</artifactId>
 				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws-sdk.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
