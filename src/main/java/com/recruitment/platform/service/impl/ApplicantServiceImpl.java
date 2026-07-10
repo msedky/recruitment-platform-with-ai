@@ -75,7 +75,6 @@ public class ApplicantServiceImpl implements ApplicantService {
             log.info("CV file stored at: {} for applicantId: {}", filePath, applicant.getId());
 
 
-
             // Step 3 — persist CvFileEntity
             CvFileEntity cvFile = CvFileEntity.builder()
                     .applicant(applicant)
@@ -138,7 +137,7 @@ public class ApplicantServiceImpl implements ApplicantService {
         return applicantRepository.findAll()
                 .stream()
                 .map(applicantMapper::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // ── Updates ───────────────────────────────────────────────────────────────
