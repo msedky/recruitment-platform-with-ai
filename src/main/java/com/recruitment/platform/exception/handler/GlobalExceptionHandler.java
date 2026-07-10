@@ -2,7 +2,6 @@ package com.recruitment.platform.exception.handler;
 
 import com.recruitment.platform.common.payload.response.ApiError;
 import com.recruitment.platform.exception.InvalidCvFileException;
-import com.recruitment.platform.exception.SearchUnavailableException;
 import com.recruitment.platform.storage.StorageException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -56,12 +55,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleInvalidFile(InvalidCvFileException ex) {
         log.warn("Invalid CV file: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    @ExceptionHandler(SearchUnavailableException.class)
-    public ResponseEntity<ApiError> handleSearchUnavailable(SearchUnavailableException ex) {
-        log.error("Search service unavailable: {}", ex.getMessage());
-        return buildError(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler(StorageException.class)
