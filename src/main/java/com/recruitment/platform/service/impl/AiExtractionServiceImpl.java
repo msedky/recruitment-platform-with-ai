@@ -4,14 +4,14 @@ import com.recruitment.platform.exception.AiResponseParseException;
 import com.recruitment.platform.exception.AiServiceUnavailableException;
 import com.recruitment.platform.model.dto.ApplicantDTO;
 import com.recruitment.platform.service.AiExtractionService;
+import com.recruitment.platform.service.ai.AiChatOptionsStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.ai.ollama.api.OllamaChatOptions;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -21,8 +21,7 @@ public class AiExtractionServiceImpl implements AiExtractionService {
 
     private final ChatModel chatModel;
 
-    @Value("${spring.ai.ollama.chat.model}")
-    private String modelName;
+    private final AiChatOptionsStrategy optionsStrategy;
 
     private static final String EXTRACTION_PROMPT = """
             You are an expert CV parser. Extract all information from the following CV text
@@ -41,12 +40,10 @@ public class AiExtractionServiceImpl implements AiExtractionService {
 
     private String callAiModel(String cvText, BeanOutputConverter<ApplicantDTO> converter) {
         try {
-            String promptText = String.format(EXTRACTION_PROMPT, cvText);
+            String promptText = String.format(EXTRACTION_PROMPT, cvText)
+                    + optionsStrategy.formatInstructions(converter);
 
-            OllamaChatOptions options = OllamaChatOptions.builder()
-                    .model(modelName)
-                    .outputSchema(converter.getJsonSchema())
-                    .build();
+            ChatOptions options = optionsStrategy.buildOptions(converter);
 
             Prompt prompt = new Prompt(promptText, options);
             ChatResponse chatResponse = chatModel.call(prompt);

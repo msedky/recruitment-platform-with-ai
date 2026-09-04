@@ -3,6 +3,7 @@ package com.recruitment.platform.exception.handler;
 import com.recruitment.platform.common.payload.response.ApiError;
 import com.recruitment.platform.exception.InvalidCvFileException;
 import com.recruitment.platform.storage.StorageException;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,6 +51,14 @@ public class GlobalExceptionHandler {
                         .error("File size exceeds maximum allowed limit")
                         .build());
     }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiError> handleEntityNotFoundException(EntityNotFoundException e) {
+        log.error("File size exceeded: {}", e.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+
 
     @ExceptionHandler(InvalidCvFileException.class)
     public ResponseEntity<ApiError> handleInvalidFile(InvalidCvFileException ex) {

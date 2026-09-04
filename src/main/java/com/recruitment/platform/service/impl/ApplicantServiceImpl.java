@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class ApplicantServiceImpl implements ApplicantService {
 
     private final ApplicantRepository applicantRepository;
@@ -47,79 +46,38 @@ public class ApplicantServiceImpl implements ApplicantService {
 
     private final CvStorageService cvStorageService;
     private final CvFileRepository cvFileRepository;
+    private final JobVacancyRepository jobVacancyRepository;
     private final JobApplicationRepository jobApplicationRepository;
     private final CvParserService cvParserService;
     private final AiExtractionService aiExtractionService;
 
-
     @Override
     public ApplicantDTO uploadAndExtract(MultipartFile file, UUID jobVacancyId) {
 
-        validateFileType(file);
+        //Step 1: Save Job Application Data
+        JobApplicationEntity jobApplication = saveJobApplication(file, jobVacancyId);
 
-        String filePath = null;
+        //Step 2: Extract CV text from the uploaded file
+        Resource fileResource = cvStorageService.load(jobApplication.getApplicant().getCvFile().getFilePath());
+        String cvText = cvParserService.extractText(fileResource, jobApplication.getApplicant().getCvFile().getFileType());
+        log.info("CV text extracted — applicantId: {}, length: {}", jobApplication.getApplicant().getId(), cvText.length());
 
-        try {
-            // Step 1 — persist skeleton ApplicantEntity
-            // fullName and email are NOT NULL in the schema but unknown until AI extraction.
-            // Temporary placeholders are overwritten by CvExtractedConsumer (Phase 4).
-            ApplicantEntity applicant = ApplicantEntity.builder()
-                    .status(ApplicantStatus.UPLOAD_RECEIVED)
-                    .fullName("PENDING_EXTRACTION")
-                    .email("PENDING_@extraction.local")
-                    .build();
-            applicantRepository.save(applicant);
-
-            // Step 2 — store file (outside transaction — storage is not transactional)
-            filePath = cvStorageService.store(file, applicant.getId());
-            log.info("CV file stored at: {} for applicantId: {}", filePath, applicant.getId());
-
-
-            // Step 3 — persist CvFileEntity
-            CvFileEntity cvFile = CvFileEntity.builder()
-                    .applicant(applicant)
-                    .originalFileName(file.getOriginalFilename())
-                    .storedFileName(applicant.getId() + "_" + file.getOriginalFilename())
-                    .filePath(filePath)
-                    .fileSize(file.getSize())
-                    .fileType(file.getContentType())
-                    .build();
-            cvFileRepository.save(cvFile);
-            log.info("Upload phase complete — applicantId: {}", applicant.getId());
-
-            JobApplicationEntity jobApplication = JobApplicationEntity.builder()
-                    .applicant(applicant)
-                    .jobVacancy(JobVacancyEntity.builder().id(jobVacancyId).build())
-                    .status(ApplicationStatus.APPLIED)
-                    .build();
-            jobApplicationRepository.save(jobApplication);
-            log.info("saved job application: {}", jobApplication.getId());
-
-            Resource fileResource = cvStorageService.load(filePath);
-            String cvText = cvParserService.extractText(fileResource, cvFile.getFileType());
-            log.info("CV text extracted — applicantId: {}", applicant.getId());
-
-            ApplicantDTO dto = aiExtractionService.extractApplicantData(cvText);
-            log.info("AI extraction completed — applicantId: {}", applicant.getId());
-
-            applicantMapper.updateEntityFromDTO(dto, applicant);
-            persistChildren(applicant, dto);
-
-            applicant.setStatus(ApplicantStatus.EXTRACTION_DONE);
-            applicantRepository.save(applicant);
-            log.info("Extracted data persisted to DB — applicantId: {}", applicant.getId());
-            dto = applicantMapper.toDTO(applicant);
-
-            return dto;
-        } catch (Exception e) {
-            // Compensating action — delete the file if DB commit fails
-            if (filePath != null) {
-                log.warn("DB transaction failed — deleting stored file: {}", filePath);
-                tryDeleteFile(filePath);
-            }
-            throw e;
+        if (cvText == null || cvText.isBlank() || cvText.trim().length() < 50) {
+            throw new InvalidCvFileException(
+                    "Could not extract readable text from the uploaded CV. The file may be image-based, use unsupported fonts, or have a non-standard layout.");
         }
+        log.info("cvText:\n{}", cvText);
 
+        //Step 3: Extract Data from CV extracted text using AI Extraction Service
+        ApplicantDTO dto = aiExtractionService.extractApplicantData(cvText);
+        log.info("AI extraction completed — applicantId: {}", jobApplication.getApplicant().getId());
+
+        //Step 4: Update Applicant Entity with extracted data
+        saveJobApplicationAfterAiExtraction(jobApplication, dto);
+
+        log.info("Extracted data persisted to DB — applicantId: {}", jobApplication.getApplicant().getId());
+        dto = applicantMapper.toDTO(jobApplication.getApplicant());
+        return dto;
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -288,6 +246,59 @@ public class ApplicantServiceImpl implements ApplicantService {
         }
     }
 
+    @Transactional
+    public JobApplicationEntity saveJobApplication(MultipartFile file, UUID jobVacancyId) {
+        validateFileType(file);
+
+        JobVacancyEntity jobVacancy = jobVacancyRepository.findById(jobVacancyId).orElseThrow(() -> new EntityNotFoundException("Job vacancy not found with id: " + jobVacancyId));
+
+        ApplicantEntity applicant = applicantRepository.save(ApplicantEntity.builder()
+                .status(ApplicantStatus.UPLOAD_RECEIVED)
+                .fullName("PENDING_EXTRACTION")
+                .email("PENDING_" + UUID.randomUUID() + "@extraction.local")
+                .build());
+
+        String filePath = null;
+        try {
+            filePath = cvStorageService.store(file, applicant.getId());
+            log.info("CV file stored at: {} for applicantId: {}", filePath, applicant.getId());
+
+            CvFileEntity cvFile = cvFileRepository.save(CvFileEntity.builder()
+                    .applicant(applicant)
+                    .originalFileName(file.getOriginalFilename())
+                    .storedFileName(applicant.getId() + "_" + file.getOriginalFilename())
+                    .filePath(filePath)
+                    .fileSize(file.getSize())
+                    .fileType(file.getContentType())
+                    .build());
+            applicant.setCvFile(cvFile);
+            applicant = applicantRepository.save(applicant);
+        } catch (Exception e) {
+            // Compensating action — delete the file if DB commit fails
+            if (filePath != null) {
+                log.warn("DB transaction failed — deleting stored file: {}", filePath);
+                tryDeleteFile(filePath);
+            }
+            throw e;
+        }
+
+        return jobApplicationRepository.save(JobApplicationEntity.builder()
+                .applicant(applicant)
+                .jobVacancy(jobVacancy)
+                .status(ApplicationStatus.APPLIED)
+                .build());
+    }
+
+    @Transactional
+    public void saveJobApplicationAfterAiExtraction(JobApplicationEntity jobApplication, ApplicantDTO dto) {
+        applicantMapper.updateEntityFromDTO(dto, jobApplication.getApplicant());
+        persistChildren(jobApplication.getApplicant(), dto);
+
+        jobApplication.getApplicant().setStatus(ApplicantStatus.EXTRACTION_DONE);
+        jobApplicationRepository.save(jobApplication);
+        applicantRepository.save(jobApplication.getApplicant());
+    }
+
     private void persistChildren(ApplicantEntity applicant, ApplicantDTO dto) {
         if (dto.getSkills() != null) {
             Set<SkillEntity> skills = dto.getSkills().stream()
@@ -295,6 +306,7 @@ public class ApplicantServiceImpl implements ApplicantService {
                     .peek(e -> e.setApplicant(applicant))
                     .collect(Collectors.toSet());
             skillRepository.saveAll(skills);
+            applicant.setSkills(skills);
         }
 
         if (dto.getWorkExperiences() != null) {
@@ -303,6 +315,7 @@ public class ApplicantServiceImpl implements ApplicantService {
                     .peek(e -> e.setApplicant(applicant))
                     .collect(Collectors.toSet());
             workExperienceRepository.saveAll(experiences);
+            applicant.setWorkExperiences(experiences);
         }
 
         if (dto.getEducations() != null) {
@@ -311,6 +324,7 @@ public class ApplicantServiceImpl implements ApplicantService {
                     .peek(e -> e.setApplicant(applicant))
                     .collect(Collectors.toSet());
             educationRepository.saveAll(educations);
+            applicant.setEducations(educations);
         }
 
         if (dto.getCertificates() != null) {
@@ -319,6 +333,7 @@ public class ApplicantServiceImpl implements ApplicantService {
                     .peek(e -> e.setApplicant(applicant))
                     .collect(Collectors.toSet());
             certificateRepository.saveAll(certificates);
+            applicant.setCertificates(certificates);
         }
 
         if (dto.getLanguages() != null) {
@@ -327,6 +342,7 @@ public class ApplicantServiceImpl implements ApplicantService {
                     .peek(e -> e.setApplicant(applicant))
                     .collect(Collectors.toSet());
             languageRepository.saveAll(languages);
+            applicant.setLanguages(languages);
         }
     }
 }

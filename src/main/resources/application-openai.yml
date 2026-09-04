@@ -1,0 +1,10 @@
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        model: gpt-4o-mini
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration
+      - org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration
