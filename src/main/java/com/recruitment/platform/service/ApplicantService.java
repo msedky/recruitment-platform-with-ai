@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface ApplicantService {
 
-    ApplicantDTO uploadAndExtract(MultipartFile file, UUID jobVacancyId);
+    ApplicantDTO uploadCvAndApply(MultipartFile file, UUID jobVacancyId);
 
     ApplicantDTO findById(UUID id);
 

@@ -37,11 +37,11 @@ public class ApplicantController {
 
     private final ApplicantService applicantService;
 
-    @PostMapping(value = "/upload/{jobVacancyId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApplicantDTO> uploadCv(
+    @PostMapping(value = "/uploadCvAndApply/{jobVacancyId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApplicantDTO> uploadCvAndApply(
             @RequestParam("file") MultipartFile file, @PathVariable UUID jobVacancyId) {
         log.info("Received CV upload request, file: {}", file.getOriginalFilename());
-        ApplicantDTO applicant = applicantService.uploadAndExtract(file, jobVacancyId);
+        ApplicantDTO applicant = applicantService.uploadCvAndApply(file, jobVacancyId);
         return ResponseEntity.ok(applicant);
     }
 

@@ -52,7 +52,7 @@ public class ApplicantServiceImpl implements ApplicantService {
     private final AiExtractionService aiExtractionService;
 
     @Override
-    public ApplicantDTO uploadAndExtract(MultipartFile file, UUID jobVacancyId) {
+    public ApplicantDTO uploadCvAndApply(MultipartFile file, UUID jobVacancyId) {
 
         //Step 1: Save Job Application Data
         JobApplicationEntity jobApplication = saveJobApplication(file, jobVacancyId);
