@@ -61,12 +61,6 @@
 			<artifactId>spring-ai-starter-model-anthropic</artifactId>
 		</dependency>
 
-		<!-- ─── AWS SDK — S3 (prod profile) ──────────────────────────── -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>s3</artifactId>
-		</dependency>
-
 		<!-- ─── File parsing ─────────────────────────────────────────── -->
 		<!-- PDF parsing -->
 		<dependency>
@@ -145,13 +139,6 @@
 				<groupId>org.springframework.ai</groupId>
 				<artifactId>spring-ai-bom</artifactId>
 				<version>${spring-ai.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>bom</artifactId>
-				<version>${aws-sdk.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
