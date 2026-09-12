@@ -1,6 +1,6 @@
 services:
 
-  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  # ── PostgreSQL ──────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: recruitment-postgres
@@ -17,109 +17,62 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - recruitment-net
 
-  # ── RabbitMQ ───────────────────────────────────────────────────────────────
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: recruitment-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"    # AMQP protocol
-      - "15672:15672"  # Management UI → http://localhost:15672
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - recruitment-net
-
-  # ── Elasticsearch ──────────────────────────────────────────────────────────
-  elasticsearch:
-    image: elasticsearch:8.13.0
-    container_name: recruitment-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false   # disabled for local dev — no auth needed
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-    networks:
-      - recruitment-net
-
-  # ── Ollama (AI model — dev only) ───────────────────────────────────────────
+  # ── Ollama (default AI provider) ───────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
     container_name: recruitment-ollama
     ports:
       - "11434:11434"
     volumes:
-      - ollama-data:/root/.ollama   # persists downloaded models between restarts
+      - ollama-data:/root/.ollama   # persists the pulled model between restarts
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:11434/api/tags || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-    networks:
-      - recruitment-net
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
-  # ── Spring Boot Application ────────────────────────────────────────────────
+  # One-shot job: pulls the model the app expects, then exits.
+  # First run takes several minutes (~4.7GB download) — subsequent
+  # runs are instant since ollama-data already has the model cached.
+  ollama-init:
+    image: curlimages/curl:8.10.1
+    container_name: recruitment-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "curl -s http://ollama:11434/api/pull -d '{\"name\": \"llama3.1:8b\"}'"
+    restart: "no"
+
+  # ── Spring Boot application ────────────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: recruitment-app
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-ollama}
       DB_URL: jdbc:postgresql://postgres:5432/recruitment_platform_db
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: guest
-      RABBITMQ_PASSWORD: guest
-      ELASTICSEARCH_URIS: http://elasticsearch:9200
       OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: mistral
+      OLLAMA_MODEL: llama3.1:8b
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CV_STORAGE_PATH: /app/uploads/cvs
     ports:
       - "8080:8080"
     volumes:
-      - cv-uploads:/app/uploads/cvs   # persists uploaded CV files
+      - cv-uploads:/app/uploads/cvs   # persists uploaded CVs across restarts
     depends_on:
       postgres:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
-    networks:
-      - recruitment-net
+      ollama-init:
+        condition: service_completed_successfully
 
-# ── Volumes ────────────────────────────────────────────────────────────────
 volumes:
   postgres-data:
-  rabbitmq-data:
-  elasticsearch-data:
   ollama-data:
   cv-uploads:
-
-# ── Network ────────────────────────────────────────────────────────────────
-networks:
-  recruitment-net:
-    driver: bridge
