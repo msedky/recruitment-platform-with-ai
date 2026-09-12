@@ -65,7 +65,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - cv-uploads:/app/uploads/cvs   # persists uploaded CVs across restarts
+      - cv-uploads:/app/uploads/cvs
     depends_on:
       postgres:
         condition: service_healthy
