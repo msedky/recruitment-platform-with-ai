@@ -148,7 +148,7 @@ recruitment-platform/
 ```bash
 git clone https://github.com/msedky/recruitment-platform-with-ai.git
 cd recruitment-platform-with-ai
-docker compose up --build
+docker compose up --build -d
 ```
 
 This starts four containers: PostgreSQL, Ollama, a one-shot job that pulls `llama3.1:8b` into Ollama, and the app itself.

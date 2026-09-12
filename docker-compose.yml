@@ -23,7 +23,7 @@ services:
     image: ollama/ollama:latest
     container_name: recruitment-ollama
     ports:
-      - "11434:11434"
+      - "11435:11434"   # host 11435 to avoid clashing with a native Ollama install on 11434
     volumes:
       - ollama-data:/root/.ollama   # persists the pulled model between restarts
     healthcheck:
@@ -65,7 +65,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - cv-uploads:/app/uploads/cvs
+      - cv-uploads:/app/uploads/cvs   # persists uploaded CVs across restarts
     depends_on:
       postgres:
         condition: service_healthy
